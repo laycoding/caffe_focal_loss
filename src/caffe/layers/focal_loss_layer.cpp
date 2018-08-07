@@ -1,5 +1,5 @@
 #include "caffe/layers/focal_loss_layer.hpp"
-#include "caffe/util/math_function.hpp"
+#include "caffe/util/math_functions.hpp"
 
 namespace caffe
 {
@@ -12,20 +12,21 @@ void FocalLossLayer<Dtype>::LayerSetUp(
     // alphas_ = this->layer_param().focal_loss_param().alpha();
     const FocalLossParameter& focal_param = this->layer_param_.focal_loss_param();
     alphas_.clear();
-    std::copy(.alpha().begin(),
-        focal_param.slice_point().end(),
+    std::copy(focal_param.alpha().begin(),
+        focal_param.alpha().end(),
         std::back_inserter(alphas_));
 
     gamma_ = focal_param.gamma();
-    batch_size = bottom[0]->count(0)
-    cls_cnt = bottom[0]->count(1)
+    batch_size = bottom[0]->count(0);
+    cls_cnt = bottom[0]->count(1);
 }
 
 template <typename Dtype>
 void FocalLossLayer<Dtype>::Reshape(
     const vector<Blob<Dtype> *> &bottom, const vector<Blob<Dtype> *> &top)
 {
-    top[0].Reshape(1);
+    vector<int> loss_shape(1, 1);
+    top[0]->Reshape(loss_shape);
 }
 
 template <typename Dtype>
@@ -40,7 +41,7 @@ void FocalLossLayer<Dtype>::Forward_cpu(
     {
         const int label_value = static_cast<int>(label[i]);
         const Dtype prob = prob_data[i*cls_cnt + label_value];
-        loss += -alphas[label_value] * powf((1 - prob), gamma_) * log(prob) / batch_size;
+        loss += -alphas_[label_value] * powf((1 - prob), gamma_) * log(prob) / batch_size;
     }
     top[0]->mutable_cpu_data()[0] = loss;
 }
@@ -60,7 +61,7 @@ void FocalLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top,
         const Dtype *prob_data = bottom[0]->cpu_data();
         const Dtype *label = bottom[1]->cpu_data();
 
-        caffe_set(batch_size * cls_cnt, 0, bottom_diff);
+        caffe_set(batch_size * cls_cnt, Dtype(0), bottom_diff);
 
         for (int i = 0; i < batch_size; ++i)
         {
@@ -69,6 +70,7 @@ void FocalLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top,
             bottom_diff[i * cls_cnt + label_value] = -alphas_[label_value] * (-gamma_ * powf((1-prob), gamma_ - 1) * log(prob) 
                                                     + powf((1-prob), gamma_) / prob);
         }
+    }
 }
 
 #ifdef CPU_ONLY
