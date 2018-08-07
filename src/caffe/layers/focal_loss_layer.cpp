@@ -1,5 +1,6 @@
 #include "caffe/layers/focal_loss_layer.hpp"
 #include "caffe/util/math_functions.hpp"
+#include <cfloat>
 
 namespace caffe
 {
@@ -41,9 +42,11 @@ void FocalLossLayer<Dtype>::Forward_cpu(
     {
         const int label_value = static_cast<int>(label[i]);
         const Dtype prob = prob_data[i*cls_cnt + label_value];
-        loss += -alphas_[label_value] * powf((1 - prob), gamma_) * log(prob) / batch_size;
+        loss -= alphas_[label_value] * powf((1 - prob), gamma_) * log(std::max(Dtype(prob), Dtype(FLT_MIN))) / batch_size;
     }
-    top[0]->mutable_cpu_data()[0] = loss;
+    Dtype normalizer = Dtype(batch_size);
+    normalizer_ = std::max(Dtype(1.0), normalizer);
+    top[0]->mutable_cpu_data()[0] = loss / normalizer_;
 }
 
 template <typename Dtype>
@@ -67,9 +70,12 @@ void FocalLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top,
         {
             const int label_value = static_cast<int>(label[i]);
             const Dtype prob = prob_data[i*cls_cnt + label_value];
-            bottom_diff[i * cls_cnt + label_value] = -alphas_[label_value] * (-gamma_ * powf((1-prob), gamma_ - 1) * log(prob) 
-                                                    + powf((1-prob), gamma_) / prob);
+            bottom_diff[i * cls_cnt + label_value] = -alphas_[label_value] * (-gamma_ * std::max(Dtyep(powf((1-prob), gamma_ - 1)), Dtype(FLT_MIN)) * log(std::max(Dtype(prob), Dtype(FLT_MIN))) 
+                                                    + std::max(powf((1-prob, gamma_)) / prob, Dtype(FLT_MIN)));
         }
+        // Scale down gradient
+        Dtype loss_weight = top[0]->cpu_diff()[0] / normalizer_;
+        caffe_scal(count, loss_weight, bottom_diff);
     }
 }
 

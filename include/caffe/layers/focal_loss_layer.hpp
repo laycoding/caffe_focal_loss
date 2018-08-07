@@ -48,6 +48,7 @@ class FocalLossLayer : public LossLayer<Dtype>
     Blob<Dtype> scaler_;
     vector<Dtype> alphas_;
     Dtype gamma_;
+    Dtype normalizer_;
 };
 
 } // namespace caffe
