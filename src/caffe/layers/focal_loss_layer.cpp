@@ -74,6 +74,8 @@ void FocalLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype> *> &top,
                                                     + std::max(powf((1-prob, gamma_)) / prob, Dtype(FLT_MIN)));
         }
         // Scale down gradient
+        Dtype normalizer = Dtype(batch_size);
+        normalizer_ = std::max(Dtype(1.0), normalizer);
         Dtype loss_weight = top[0]->cpu_diff()[0] / normalizer_;
         caffe_scal(count, loss_weight, bottom_diff);
     }

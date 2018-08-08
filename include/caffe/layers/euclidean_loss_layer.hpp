@@ -98,8 +98,6 @@ class EuclideanLossLayer : public LossLayer<Dtype> {
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
-  virtual Dtype get_normalizer(
-    LossParameter_NormalizationMode normalization_mode, int valid_count);
 
   Blob<Dtype> diff_;
 };
